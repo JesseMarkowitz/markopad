@@ -1,0 +1,396 @@
+/* MarkoPad interface. The rendered-document styles live in markdown.css. */
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --fg: #1f2328;
+  --muted: #5b6672;
+  --border: #d1d9e0;
+  --accent: #0b5cad;
+  --accent-fg: #ffffff;
+  --hover: #e8ecf0;
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b4a00;
+  --warn-border: #e2b93b;
+  --danger: #b3261e;
+  --shadow: 0 8px 30px rgba(20, 30, 45, 0.22);
+  --editor-bg: #fcfcfd;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013;
+    --panel: #15181c;
+    --fg: #e3e7ec;
+    --muted: #9aa5b1;
+    --border: #363d46;
+    --accent: #7ab8ff;
+    --accent-fg: #0b1220;
+    --hover: #232a32;
+    --warn-bg: #3a2f08;
+    --warn-fg: #ffe08a;
+    --warn-border: #8a6d10;
+    --danger: #ff8a80;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    --editor-bg: #111418;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013;
+  --panel: #15181c;
+  --fg: #e3e7ec;
+  --muted: #9aa5b1;
+  --border: #363d46;
+  --accent: #7ab8ff;
+  --accent-fg: #0b1220;
+  --hover: #232a32;
+  --warn-bg: #3a2f08;
+  --warn-fg: #ffe08a;
+  --warn-border: #8a6d10;
+  --danger: #ff8a80;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --editor-bg: #111418;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+[hidden] { display: none !important; }
+
+button, .btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+button:hover, .btn:hover { background: var(--hover); }
+button:focus-visible, .btn:focus-visible, a:focus-visible, textarea:focus-visible,
+input:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); background: var(--accent); }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+/* ---------- top bar ---------- */
+#bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+#brand { margin-right: 6px; font-weight: 700; font-size: 15px; letter-spacing: 0.01em; }
+.group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.spacer { flex: 1 1 12px; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 7px 7px 0; }
+
+.menu { position: relative; }
+.menu-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  padding: 5px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+}
+.menu-list button { justify-content: flex-start; border-color: transparent; background: none; }
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--hover); }
+.menu-list small { color: var(--muted); margin-left: auto; padding-left: 1.5em; }
+
+/* ---------- panes ---------- */
+#panes {
+  --split: 50;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+/* Each pane lays itself out alone, so typing in one never makes the browser re-measure the other. */
+#editor-pane, #preview-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; contain: strict; }
+#editor-pane { flex: 0 0 calc(var(--split) * 1%); }
+#preview-pane { flex: 1 1 0; background: var(--panel); }
+#editor {
+  flex: 1 1 auto;
+  width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  border: 0;
+  resize: none;
+  background: var(--editor-bg);
+  color: var(--fg);
+  font: 14.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+#editor:focus-visible { outline: none; }   /* the text cursor shows where you are */
+#preview-scroll { flex: 1 1 auto; overflow: auto; contain: strict; }
+#preview { padding: 20px 24px 60px; max-width: 900px; min-height: 100%; }
+#preview:empty::before { content: "The formatted document appears here."; color: var(--muted); }
+
+#divider {
+  flex: 0 0 11px;
+  position: relative;
+  background: var(--bg);
+  border: solid var(--border);
+  border-width: 0 1px;
+  cursor: col-resize;
+  touch-action: none;
+}
+#divider::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 3px;
+  height: 34px;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0.55;
+}
+#divider:hover, #divider.dragging, #divider:focus-visible { background: var(--hover); }
+#divider:hover::after, #divider.dragging::after { opacity: 1; background: var(--accent); }
+body.dragging { user-select: none; cursor: col-resize; }
+
+body[data-view="edit"] #preview-pane, body[data-view="edit"] #divider { display: none; }
+body[data-view="edit"] #editor-pane { flex: 1 1 auto; }
+body[data-view="preview"] #editor-pane, body[data-view="preview"] #divider { display: none; }
+
+/* Narrow screens: "Both" stacks the panes, text on top. */
+body[data-narrow="true"] #panes { flex-direction: column; }
+body[data-narrow="true"] #divider { border-width: 1px 0; cursor: row-resize; }
+body[data-narrow="true"] #divider::after { width: 34px; height: 3px; }
+body[data-narrow="true"].dragging { cursor: row-resize; }
+body[data-narrow="true"] #preview { padding: 16px 16px 48px; }
+body[data-narrow="true"] #editor { padding: 14px 16px; font-size: 16px; }
+/* A compact bar for phones: one flowing set of smaller buttons instead of separate groups. */
+body[data-narrow="true"] #bar { gap: 5px; padding: 5px 8px; }
+body[data-narrow="true"] #brand, body[data-narrow="true"] .spacer { display: none; }
+body[data-narrow="true"] .group { display: contents; }
+body[data-narrow="true"] #bar button, body[data-narrow="true"] #bar .btn { min-height: 34px; padding: 0 9px; font-size: 13.5px; }
+body[data-narrow="true"]:not([data-view="both"]) #btn-sync { display: none; }
+body[data-narrow="true"] .menu-list button { min-height: 40px; }
+body[data-narrow="true"] #status { gap: 10px; font-size: 12px; }
+body[data-narrow="true"] #recovery { display: none; }
+body[data-narrow="true"] #recovery.off { display: inline; }
+
+/* ---------- blocked-image notice and placeholders ---------- */
+#img-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border-bottom: 1px solid var(--warn-border);
+  font-size: 13px;
+}
+#img-notice a { color: inherit; }
+/* Nothing blocked, only a reminder that remote images are showing: a calmer bar. */
+#img-notice.calm { background: var(--bg); color: var(--muted); border-bottom-color: var(--border); }
+.mp-blocked, .mp-unavailable-img {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 2px 0;
+  padding: 6px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.mp-blocked b { color: var(--fg); overflow-wrap: anywhere; }
+.mp-blocked button { min-height: 26px; padding: 0 8px; font-size: 12.5px; }
+.mp-link.mp-suspicious { background: var(--warn-bg); color: var(--warn-fg); border-radius: 3px; }
+.mp-flag { margin-left: 0.25em; font-size: 0.85em; text-decoration: none; display: inline-block; }
+.mp-unavailable { color: var(--muted); text-decoration: underline dotted; cursor: help; }
+
+/* ---------- status line ---------- */
+#status {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+#status-msg { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#status-msg.strong { color: var(--fg); }
+#recovery.off { color: var(--danger); }
+#version { flex: none; white-space: nowrap; }
+
+/* ---------- How do I…? panel ---------- */
+#howto {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(430px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+#howto-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+#howto-head h2 { flex: 1; margin: 0; font-size: 15px; }
+#howto-search {
+  margin: 10px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--editor-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+}
+#howto-list { flex: 1 1 auto; overflow: auto; padding: 0 12px 16px; }
+#howto-empty { color: var(--muted); padding: 8px 2px; }
+.how {
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border);
+}
+.how h3 { margin: 0 0 6px; font-size: 14px; }
+.how-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.how-label { margin: 0 0 3px; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.how pre.how-src {
+  margin: 0;
+  padding: 7px 8px;
+  overflow: auto;
+  max-height: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.how .md {
+  padding: 7px 8px;
+  overflow: auto;
+  max-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13.5px;
+}
+.how .md h1 { font-size: 1.35em; }
+.how .md h2 { font-size: 1.2em; }
+.how .md h3 { font-size: 1.05em; }
+.how .md h1, .how .md h2, .how .md h3 { margin: 0 0 0.3em; }
+.how-note { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
+.how-actions { display: flex; gap: 6px; margin-top: 8px; }
+.how-actions button { min-height: 28px; }
+
+/* ---------- dialogs and overlays ---------- */
+dialog {
+  width: min(520px, calc(100% - 24px));
+  padding: 18px 20px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(10, 15, 22, 0.5); }
+#dlg-title { margin: 0 0 10px; font-size: 17px; }
+#dlg-body { font-size: 14.5px; line-height: 1.5; }
+#dlg-body p { margin: 0 0 10px; }
+#dlg-body .host { font-size: 19px; font-weight: 700; overflow-wrap: anywhere; }
+#dlg-body .addr {
+  display: block;
+  max-height: 110px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+#dlg-body .warnbox {
+  margin: 0 0 10px;
+  padding: 8px 10px 8px 28px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  border: 1px solid var(--warn-border);
+  border-radius: 7px;
+}
+#dlg-body .warnbox li + li { margin-top: 4px; }
+#dlg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+#drop-overlay {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 92, 173, 0.16);
+  border: 3px dashed var(--accent);
+  color: var(--fg);
+  font-size: 20px;
+  font-weight: 600;
+  pointer-events: none;
+}
+#noscript { padding: 24px; font-size: 16px; }
+.mp-offscreen { position: fixed; left: -9999px; top: 0; width: 640px; opacity: 0; pointer-events: none; }
+
+/* ---------- printing: the formatted document only ---------- */
+@media print {
+  html, body { height: auto; overflow: visible; display: block; background: #fff; }
+  #bar, #status, #editor-pane, #divider, #howto, #img-notice, #drop-overlay, dialog { display: none !important; }
+  #panes, #preview-pane, #preview-scroll { display: block !important; overflow: visible; height: auto; contain: none; }
+  #preview { max-width: none; padding: 0; }
+  .md, :root[data-theme="dark"] .md, :root:not([data-theme="light"]) .md {
+    --md-fg: #000;
+    --md-muted: #444;
+    --md-bg: #fff;
+    --md-soft: #f3f3f3;
+    --md-border: #bbb;
+    --md-link: #0b3d91;
+    --md-mark: #fff3a3;
+  }
+  .mp-blocked button { display: none; }
+}

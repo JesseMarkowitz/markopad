@@ -1,0 +1,15 @@
+{
+  "name": "markopad",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A private two-pane Markdown editor and viewer in one self-contained HTML file.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}

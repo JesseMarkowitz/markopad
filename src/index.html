@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!--LICENSES-->
+<!--CSP-->
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>MarkoPad</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b5cad'/%3E%3Cpath d='M7 23V9h3.2l3.8 6 3.8-6H21v14h-3v-8.6l-4 6.1-4-6.1V23z' fill='%23fff'/%3E%3Cpath d='M23.5 9v9M21 15.5l2.5 3 2.5-3' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>/*CSS*/</style>
+</head>
+<body data-view="both" data-narrow="false">
+
+<header id="bar">
+  <span id="brand">MarkoPad</span>
+  <div class="group" role="group" aria-label="Document">
+    <button type="button" id="btn-new" title="Start a new document. Wipes the text and its recovery copy from this tab.">New</button>
+    <button type="button" id="btn-open" title="Open a text or Markdown file from this device (Ctrl+O). You can also drop a file onto the page.">Open</button>
+    <div class="menu">
+      <button type="button" id="btn-download" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-download" title="Save the document to this device, or print it">Download ▾</button>
+      <div class="menu-list" id="menu-download" role="menu" hidden>
+        <button type="button" role="menuitem" id="act-save-md" title="Save the raw text as a .md file">Markdown file (.md) <small>Ctrl+S</small></button>
+        <button type="button" role="menuitem" id="act-save-html" title="Save the formatted document as a single web page that needs nothing else to display">Web page (.html)</button>
+        <button type="button" role="menuitem" id="act-print" title="Print the formatted document, or choose “Save as PDF” in the print window">Print or save as PDF <small>Ctrl+P</small></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button type="button" id="btn-copy" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-copy" title="Copy the whole document to the clipboard">Copy ▾</button>
+      <div class="menu-list" id="menu-copy" role="menu" hidden>
+        <button type="button" role="menuitem" id="act-copy-md" title="Copy the raw Markdown text">Markdown text</button>
+        <button type="button" role="menuitem" id="act-copy-rich" title="Copy the formatted document, ready to paste into an email or a word processor">Formatted text</button>
+        <button type="button" role="menuitem" id="act-copy-html" title="Copy the formatted document as HTML code">HTML code</button>
+      </div>
+    </div>
+    <a class="btn" id="btn-window" href="#new" target="_blank" rel="noopener" title="Open another, empty MarkoPad in a new tab. Each tab is a separate document.">New window</a>
+  </div>
+
+  <span class="spacer"></span>
+
+  <div class="seg" role="group" aria-label="Which panes to show">
+    <button type="button" id="view-edit" aria-pressed="false" title="Show only the raw text">Edit</button>
+    <button type="button" id="view-both" aria-pressed="true" title="Show the raw text and the formatted document together">Both</button>
+    <button type="button" id="view-preview" aria-pressed="false" title="Show only the formatted document">Preview</button>
+  </div>
+  <div class="group" role="group" aria-label="Options and help">
+    <button type="button" id="btn-sync" aria-pressed="true" title="Scroll both panes together. Click to turn off.">Sync scroll</button>
+    <button type="button" id="btn-theme" title="Switch between light and dark for this tab">Dark</button>
+    <button type="button" id="btn-howto" aria-expanded="false" aria-controls="howto" title="Find the Markdown for the effect you want">How do I…?</button>
+    <a class="btn" id="btn-help" href="#help" target="_blank" rel="noopener" title="Open the full help in a new tab">Help</a>
+  </div>
+  <input type="file" id="file-input" accept=".md,.markdown,.mdown,.txt,text/markdown,text/plain,text/*" hidden>
+</header>
+
+<main id="panes">
+  <section id="editor-pane" aria-label="Raw text">
+    <textarea id="editor" aria-label="Markdown text" spellcheck="true" autocapitalize="sentences" autocomplete="off"
+      placeholder="Type or paste Markdown here.&#10;&#10;You can also press Open, or drop a file anywhere on this page.&#10;&#10;Not sure what to type? Press “How do I…?” at the top."></textarea>
+  </section>
+  <div id="divider" role="separator" aria-orientation="vertical" aria-label="Resize the panes" aria-valuemin="10" aria-valuemax="90" aria-valuenow="50" tabindex="0"
+    title="Drag to resize. Arrow keys also work. Double-click to centre."></div>
+  <section id="preview-pane" aria-label="Formatted document">
+    <div id="img-notice" role="status" hidden>
+      <span id="img-notice-text"></span>
+      <span id="img-loaded-text"></span>
+      <button type="button" id="img-load-all" title="Load every blocked image in this document">Load all</button>
+      <button type="button" id="img-block-again" title="Stop showing remote images in this document and forget which sites you allowed. Sites that already sent an image have already seen your address." hidden>Block again</button>
+      <a id="img-why" href="#help=remote-images-and-your-privacy" target="_blank" rel="noopener" title="Read what loading a remote image reveals">Why are they blocked?</a>
+    </div>
+    <div id="preview-scroll" tabindex="0" aria-label="Formatted document, scrollable">
+      <article id="preview" class="md"></article>
+    </div>
+  </section>
+</main>
+
+<footer id="status">
+  <span id="counts" title="Size of the document">0 lines · 0 words · 0 characters</span>
+  <span id="recovery" title="This tab keeps a recovery copy of the text until the tab is closed, so a reload does not lose it. Nothing is kept after that.">Recovery copy: on</span>
+  <span id="status-msg" role="status" aria-live="polite"></span>
+  <span id="version"></span>
+</footer>
+
+<aside id="howto" aria-label="How do I…?" hidden>
+  <div id="howto-head">
+    <h2>How do I…?</h2>
+    <button type="button" id="howto-close" title="Close this panel (Esc)">Close</button>
+  </div>
+  <input type="search" id="howto-search" placeholder="Try: table, bold, link, checklist…" aria-label="Search for an effect" autocomplete="off">
+  <div id="howto-list"></div>
+</aside>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <h2 id="dlg-title"></h2>
+  <div id="dlg-body"></div>
+  <div id="dlg-actions"></div>
+</dialog>
+
+<div id="drop-overlay" hidden>Drop the file to open it</div>
+
+<noscript><p id="noscript">MarkoPad needs JavaScript to turn Markdown into a formatted document. Everything runs inside this browser; nothing you type is sent anywhere. Please allow JavaScript for this page and reload.</p></noscript>
+
+<script>/*JS*/</script>
+</body>
+</html>
