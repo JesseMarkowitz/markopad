@@ -1,6 +1,6 @@
 # MarkoPad — Requirements
 
-Version 1 requirements, draft 2, 2026-11-09. Status: **reviewed and built**. Section 11 records what has been verified and what has not.
+Version 1 requirements, 2026-11-10. Status: **released as 1.0.0**. Section 11 records what has been verified and what has not.
 
 MarkoPad is a two-pane Markdown editor and viewer that runs entirely in the browser. You type or
 paste Markdown on the left and read the rendered result on the right. It is one static page that
@@ -57,7 +57,8 @@ All seven recommendations were accepted on 2026-11-09.
   text, the cursor position or the scroll position.
 - **L-6** Light and dark appearance follow the device setting. A button switches
   between them for the current tab.
-- **L-7** A slim top bar holds every control. There is no formatting toolbar in version 1.
+- **L-7** A slim top bar holds every control. A formatting toolbar sits above the text pane
+  (section 3.8).
 - **L-8** The browser tab title shows the document name, with a mark (●) when there are
   unsaved changes, so several MarkoPad tabs can be told apart. The name is, in order: the name of
   the opened file; else the first heading; else the first line of text, shortened; else "Untitled"
@@ -76,6 +77,24 @@ All seven recommendations were accepted on 2026-11-09.
 - **E-6** Scrolling one pane scrolls the other to the matching place. A control turns this off.
 - **E-7** A status line shows line count, word count and character count. It may carry more
   detail later.
+
+### 3.8 Formatting toolbar
+
+- **T-1** A toolbar above the text pane with: bold, italic, strikethrough, inline code; headings
+  1 to 3; link, image; bulleted, numbered and check lists; quotation; code block; table; dividing
+  line.
+- **T-2** A button applies its Markdown to the selected text. Pressing it again on text that
+  already carries that Markdown removes it.
+- **T-3** With nothing selected, an inline button acts on the word under the cursor, or inserts a
+  placeholder that is left selected so typing replaces it.
+- **T-4** Line buttons (headings, lists, quotation) act on every selected line, or the current one.
+- **T-5** Link and Image leave the address selected, ready to type. Selected text becomes the
+  link text or the image description; a selected address becomes the link's address.
+- **T-6** Every toolbar action is a single Undo step.
+- **T-7** The toolbar can be hidden and shown from the top bar. The choice lasts for the tab.
+- **T-8** Ctrl+B, Ctrl+I and Ctrl+K are bold, italic and link while the text pane has focus.
+- **T-9** The toolbar is reachable by keyboard: Tab to it, arrow keys along it. Pressing a button
+  with a mouse or finger does not take the selection away from the text.
 
 ### 3.3 Markdown
 
@@ -266,7 +285,7 @@ be opened through the confirmation question, so no kind of click or browser menu
 
 ## 9. Not in version 1
 
-Formatting toolbar · document tabs inside the page · permanent settings · a list of trusted image
+Document tabs inside the page · permanent settings · a list of trusted image
 hosts · accounts, sharing links, collaboration · storing pasted images · footnotes, math, diagrams,
 code colouring · languages other than English · installing as an offline app.
 
@@ -312,6 +331,33 @@ browser and the result recorded.
    disk; differences between the three are written into the help.
 6. **Browsers.** The walk-through is repeated on each browser in Q6.
 
+### Verification record, 2026-11-10 (release 1.0.0)
+
+Run with `MARKOPAD_WEBKIT=1 npm test` (Playwright 1.65.0) on the new development machine, and
+again with the same suite pointed at the hosted Start9 Pages copy: **126 passed, 0 skipped,
+0 failed, both times.** That build carried the number 0.2.0; release 1.0.0 is the same code with
+only the version number changed, and the suite was run once more on it before release.
+
+| Check | Chromium 1254 | Firefox 1572 | WebKit 2388 (Safari's engine) |
+| --- | --- | --- | --- |
+| Desktop suite, 41 tests, including the six toolbar tests (T-1 to T-9) | 41 passed | 41 passed | 41 passed |
+| Phone-size touch screen, 7 tests | 7 passed (emulated Pixel 7) | not run | not run |
+
+The owner tried 0.2.0 by hand on the hosted copy and found it good. Android remains unverified:
+no device is available.
+
+Large documents on this machine, a real desktop rather than the earlier virtual machine, against
+the hosted copy:
+
+| Document | Browser | First display | Typing, per key | Preview caught up after typing |
+| --- | --- | --- | --- | --- |
+| 250 KB | Chromium | 1.1 s | 17 ms | 0.3 s |
+| 250 KB | Firefox | 1.0 s | 5 ms | 0.3 s |
+| 250 KB | WebKit | 1.2 s | 27 ms | 0.6 s |
+| 1 MB | Chromium | 2.9 s | 109 ms | 1.0 s |
+| 1 MB | Firefox | 2.5 s | 29 ms | 1.0 s |
+| 1 MB | WebKit | 3.2 s | 105 ms | 1.1 s |
+
 ### Verification record, 2026-11-09
 
 Run on the development machine with `MARKOPAD_WEBKIT=1 npm test`: **110 passed, 0 skipped, 0 failed.**
@@ -323,14 +369,18 @@ Run on the development machine with `MARKOPAD_WEBKIT=1 npm test`: **110 passed, 
 
 One gap inside that result: the WebKit build used for testing keeps only plain text on its
 clipboard, so **Copy → Formatted text cannot be checked in Safari's engine by these tests.** The
-plain-text copies are checked there by pasting back with the keyboard.
+plain-text copies are checked there by pasting back with the keyboard. The owner's check on a real
+iPhone, below, covers that gap.
 
 Checked by hand by the owner on the hosted copy:
 
 | Browser | What was done |
 | --- | --- |
 | Brave on Windows | General use |
-| Safari on an iPhone | Editing, viewing, and copying into and out of MarkoPad |
+| Safari on an iPhone | Editing, viewing, and copying into and out of MarkoPad, including Copy → Formatted text pasted with its formatting intact (2026-11-10) |
+| Edge on Windows | General use (2026-11-10) |
+| Tor Browser | General use (2026-11-10) |
+| Safari on a Mac | General use (2026-11-10) |
 
 What the numbered checks in this section found:
 
@@ -348,9 +398,8 @@ What the numbered checks in this section found:
    0.1.0, as released), compressed with Brotli, with plain HTTP redirected to HTTPS and no server
    policy header to clash with the page's own. The whole suite, all four browser projects, was
    pointed at the hosted copy and passed.
-6. **Browsers.** Automated: Chromium, Firefox, and WebKit on Linux, which is close to Safari but is
-   not Safari itself. By hand: Brave on Windows, Safari on an iPhone. **Not verified:** Safari on
-   a Mac, Edge, Tor Browser, and any Android phone.
+6. **Browsers.** Automated: Chromium, Firefox, and WebKit on Linux. By hand: Brave on Windows,
+   Edge on Windows, Tor Browser, Safari on a Mac, Safari on an iPhone. **Not verified:** Android.
 
 Large documents, measured on a 4-core virtual machine without graphics acceleration, which is slower
 than most real computers:
@@ -390,3 +439,5 @@ responsive while a large document is prepared: the longest stall was about 0.3 s
 | 2026-11-09 | Approved images can be blocked again from the same bar that offers to load them (P-10). |
 | 2026-11-09 | The status line shows the running version (H-7). |
 | 2026-11-09 | The first version is 0.1.0. |
+| 2026-11-10 | Formatting toolbar added (section 3.8), with a Toolbar button to hide it. Name explanation added to the help's About section. Version 0.2.0. |
+| 2026-11-10 | No further enhancements for version 1. Released as 1.0.0 with the toolbar included. |

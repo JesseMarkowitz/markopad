@@ -156,6 +156,31 @@ button[aria-pressed="true"] { background: var(--accent); border-color: var(--acc
   overflow-wrap: break-word;
 }
 #editor:focus-visible { outline: none; }   /* the text cursor shows where you are */
+
+/* ---------- formatting toolbar ---------- */
+#toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;            /* wide screens: a second row rather than hidden buttons */
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+#toolbar button {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  border-color: transparent;
+  background: none;
+}
+#toolbar button:hover, #toolbar button:focus-visible { background: var(--hover); border-color: var(--border); }
+#toolbar .tb-b { font-weight: 700; }
+#toolbar .tb-i { font-style: italic; }
+#toolbar .tb-s { text-decoration: line-through; }
+#toolbar .tb-code, #toolbar .tb-block { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+#toolbar .tb-gap { flex: none; width: 1px; margin: 4px 3px; background: var(--border); }
+body[data-toolbar="false"] #toolbar { display: none; }
 #preview-scroll { flex: 1 1 auto; overflow: auto; contain: strict; }
 #preview { padding: 20px 24px 60px; max-width: 900px; min-height: 100%; }
 #preview:empty::before { content: "The formatted document appears here."; color: var(--muted); }
@@ -205,6 +230,8 @@ body[data-narrow="true"] .menu-list button { min-height: 40px; }
 body[data-narrow="true"] #status { gap: 10px; font-size: 12px; }
 body[data-narrow="true"] #recovery { display: none; }
 body[data-narrow="true"] #recovery.off { display: inline; }
+body[data-narrow="true"] #toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding: 4px 6px; }   /* phones: one row that scrolls sideways */
+body[data-narrow="true"] #toolbar button { min-height: 32px; }
 
 /* ---------- blocked-image notice and placeholders ---------- */
 #img-notice {

@@ -43,7 +43,10 @@ If you do not know how to write something, press **How do I…?** and type what 
 | **Sync scroll** | Keeps the two panes at the same place. Click to turn it off. |
 | **Dark / Light** | Switches the colours for this tab. |
 | **How do I…?** | A searchable cheat sheet with Insert and Copy buttons. |
+| **Toolbar** | Shows or hides the formatting toolbar above the text. |
 | **Help** | Opens this document in a new tab. |
+
+**The formatting toolbar** sits above the text. Select some text, press a button, and the Markdown for that effect is put around it. Press the same button again to take it off. With nothing selected, bold, italic and the like act on the word under the cursor, or insert an example you can type over. The list, quotation and heading buttons act on every line you have selected. Link and Image leave the address selected so you can type it straight away. Everything the toolbar does can be undone with the usual Undo.
 
 **The divider.** Drag the bar between the panes with a mouse or a finger. With the keyboard, move to it with Tab and use the arrow keys; Home and End jump to the ends, and Enter centres it. Double-click or double-tap also centres it.
 
@@ -222,6 +225,9 @@ Colours, fonts, sizes and positioning written into a document are removed, so th
 | <kbd>Ctrl</kbd> + <kbd>O</kbd> | Open a file |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | Download the Markdown file |
 | <kbd>Ctrl</kbd> + <kbd>P</kbd> | Print the formatted document |
+| <kbd>Ctrl</kbd> + <kbd>B</kbd> | Bold the selection |
+| <kbd>Ctrl</kbd> + <kbd>I</kbd> | Italic |
+| <kbd>Ctrl</kbd> + <kbd>K</kbd> | Make the selection a link |
 | <kbd>Tab</kbd> | Indent the current line or the selected lines |
 | <kbd>Shift</kbd> + <kbd>Tab</kbd> | Remove one level of indent |
 | <kbd>Esc</kbd> then <kbd>Tab</kbd> | Leave the text pane with the keyboard |
@@ -251,6 +257,8 @@ The server that hands out the file learns only that the page was fetched. It nev
 ## About
 
 MarkoPad {{VERSION}}. Free software under the MIT license.
+
+**The name.** MARKO stands for Markdown And Rendering, Kept On-device. The left pane is the Markdown, the right pane is the rendering, and together they are the pad. A pad is where you put your notes, tear a sheet from, and walk away with. It keeps nothing, and neither does MarkoPad.
 
 It includes two open-source libraries, copied into the file rather than loaded from elsewhere:
 

@@ -203,6 +203,136 @@ test('E-4: Enter continues a list and ends it on an empty item', async ({ page }
   expect(await editorValue(page)).toBe('- a\n- b\n9. nine\n10. ten\n- [x] task\n- [ ] ');
 });
 
+/* ------------------------------------------------------------------ formatting toolbar */
+
+async function select(page, from, to) {
+  await page.locator('#editor').evaluate((e, [a, b]) => { e.focus(); e.setSelectionRange(a, b); }, [from, to]);
+}
+const selected = (page) => page.locator('#editor').evaluate((e) => e.value.slice(e.selectionStart, e.selectionEnd));
+
+test('T-2, T-3, T-6: inline buttons wrap, unwrap, take the word under the cursor, and undo', async ({ page }) => {
+  await fresh(page);
+  await setText(page, 'make this bold please');
+  await select(page, 5, 9);
+  await page.click('#tb-bold');
+  expect(await editorValue(page)).toBe('make **this** bold please');
+  expect(await selected(page)).toBe('this');
+  await page.click('#tb-bold');                                       // again: taken off
+  expect(await editorValue(page)).toBe('make this bold please');
+  await select(page, 5, 9);
+  await page.click('#tb-italic');
+  await page.click('#tb-bold');                                       // italic inside bold, not confused
+  expect(await editorValue(page)).toBe('make ***this*** bold please');
+  await page.click('#tb-bold');
+  expect(await editorValue(page)).toBe('make *this* bold please');
+  await select(page, 12, 12);                                         // caret inside "bold", nothing selected
+  await page.click('#tb-strike');
+  expect(await editorValue(page)).toBe('make *this* ~~bold~~ please');
+  await select(page, 5, 5);                                           // caret between a space and a mark: a placeholder
+  await page.click('#tb-code');
+  expect(await editorValue(page)).toBe('make `code`*this* ~~bold~~ please');
+  expect(await selected(page)).toBe('code');
+  await page.keyboard.type('npm');
+  expect(await editorValue(page)).toBe('make `npm`*this* ~~bold~~ please');
+  await page.keyboard.press(`${mod}+Z`);
+  await page.keyboard.press(`${mod}+Z`);
+  expect(await editorValue(page)).toBe('make *this* ~~bold~~ please');  // each action is one undo step
+  await expect(page.locator('#preview del')).toHaveText('bold');
+});
+
+test('T-4: line buttons act on every selected line and toggle off', async ({ page }) => {
+  await fresh(page);
+  await setText(page, 'one\ntwo\n\nthree');
+  await select(page, 0, 14);
+  await page.click('#tb-ul');
+  expect(await editorValue(page)).toBe('- one\n- two\n\n- three');
+  await page.click('#tb-ol');                                         // switches kind
+  expect(await editorValue(page)).toBe('1. one\n2. two\n\n3. three');
+  await page.click('#tb-task');
+  expect(await editorValue(page)).toBe('- [ ] one\n- [ ] two\n\n- [ ] three');
+  await page.click('#tb-task');                                       // same again: off
+  expect(await editorValue(page)).toBe('one\ntwo\n\nthree');
+  await page.click('#tb-quote');
+  expect(await editorValue(page)).toBe('> one\n> two\n\n> three');
+  await page.click('#tb-quote');
+  await select(page, 1, 1);                                           // just a caret: the current line
+  await page.click('#tb-h2');
+  expect(await editorValue(page)).toBe('## one\ntwo\n\nthree');
+  await page.click('#tb-h1');                                         // a different level replaces
+  expect(await editorValue(page)).toBe('# one\ntwo\n\nthree');
+  await page.click('#tb-h1');                                         // the same level removes
+  expect(await editorValue(page)).toBe('one\ntwo\n\nthree');
+  await expect(page.locator('#preview h1')).toHaveCount(0);
+});
+
+test('T-5: link and image leave the address ready to type; a selected address becomes the link', async ({ page }) => {
+  await fresh(page);
+  await setText(page, 'see the docs here');
+  await select(page, 8, 12);
+  await page.click('#tb-link');
+  expect(await editorValue(page)).toBe('see the [docs](https://) here');
+  expect(await selected(page)).toBe('https://');
+  await page.keyboard.type('https://example.com/docs');
+  expect(await editorValue(page)).toBe('see the [docs](https://example.com/docs) here');
+  await setText(page, 'https://example.com');
+  await select(page, 0, 19);
+  await page.locator('#editor').press(`${mod}+K`);
+  expect(await editorValue(page)).toBe('[link text](https://example.com)');
+  expect(await selected(page)).toBe('link text');
+  await setText(page, '');
+  await page.click('#tb-image');
+  expect(await editorValue(page)).toBe('![description](https://)');
+  expect(await selected(page)).toBe('description');
+});
+
+test('T-1: code block, table and dividing line are inserted as blocks', async ({ page }) => {
+  await fresh(page);
+  await setText(page, 'first\nconst a = 1;\nconst b = 2;\nlast');
+  await select(page, 6, 20);
+  await page.click('#tb-codeblock');
+  expect(await editorValue(page)).toBe('first\n\n```\nconst a = 1;\nconst b = 2;\n```\n\nlast');
+  await expect(page.locator('#preview pre code')).toHaveText('const a = 1;\nconst b = 2;\n');
+  await setText(page, 'above');
+  await select(page, 5, 5);
+  await page.click('#tb-table');
+  expect(await editorValue(page)).toBe('above\n\n| Column | Column |\n| --- | --- |\n| cell | cell |\n');
+  expect(await selected(page)).toBe('Column');
+  await select(page, 999, 999);
+  await page.click('#tb-hr');
+  await expect(page.locator('#preview hr')).toHaveCount(1);
+  await expect(page.locator('#preview table')).toHaveCount(1);
+});
+
+test('T-7, T-8, T-9: the toolbar hides and shows, keeps that through a reload, and works by keyboard', async ({ page }) => {
+  await fresh(page);
+  await expect(page.locator('#toolbar')).toBeVisible();
+  await page.click('#btn-toolbar');
+  await expect(page.locator('#toolbar')).toBeHidden();
+  await expect(page.locator('#btn-toolbar')).toHaveAttribute('aria-pressed', 'false');
+  await page.waitForTimeout(600);
+  await page.reload();
+  await expect(page.locator('#toolbar')).toBeHidden();
+  await page.click('#btn-toolbar');
+  await expect(page.locator('#toolbar')).toBeVisible();
+  await setText(page, 'shortcut text');
+  await select(page, 0, 8);
+  await page.locator('#editor').press(`${mod}+B`);
+  await page.locator('#editor').press(`${mod}+I`);
+  expect(await editorValue(page)).toBe('***shortcut*** text');
+  // Keyboard: Tab onto the toolbar, arrows along it, Enter presses.
+  await select(page, 15, 19);
+  await page.locator('#tb-bold').focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#tb-strike')).toBeFocused();
+  await page.keyboard.press('Enter');
+  expect(await editorValue(page)).toBe('***shortcut*** ~~text~~');
+  // A mouse press on a button leaves the text selection where it was.
+  await select(page, 3, 11);
+  await page.locator('#tb-code').dispatchEvent('pointerdown');
+  expect(await selected(page)).toBe('shortcut');
+});
+
 /* ------------------------------------------------------------------ in and out */
 
 test('IO-2, IO-4, Q2: Open loads a file; a second file asks before replacing', async ({ page }) => {
@@ -523,11 +653,11 @@ test('X-1, X-2, X-3, X-9: hostile documents cannot run code, style the page or l
   expect(dialogs).toBe(0);
   expect(requests, 'requests made while showing hostile documents').toEqual([]);
   // The browser applies the page policy while the sanitizer is still parsing a document off-page,
-  // so it reports the styling and <base> it meets there, before they are removed. (The audit above
-  // is what proves none of it reached the page.) It must never have anything else to report:
-  // nothing about scripts, connections, frames, objects, forms or images.
+  // so it reports the inline styling, inline event handlers and <base> it meets there, before they
+  // are removed. (The audit above is what proves none of it reached the page.) Nothing else may be
+  // reported, and above all no report may name a network address: no fetch, frame, object or image.
   const reports = await violations(page);
-  expect(reports.filter((v) => !/^(style-src-attr|style-src-elem|base-uri) <- /.test(v)), 'policy reports other than off-page styling').toEqual([]);
+  expect(reports.filter((v) => !/^(style-src-attr|style-src-elem|script-src-attr) <- inline$|^base-uri <- /.test(v)), 'policy reports other than off-page markup').toEqual([]);
 });
 
 test('X-9: the page policy blocks injected script and any data connection', async ({ page }) => {
@@ -772,7 +902,7 @@ test('P-1, D-1: loading the page is a single request, and nothing follows it', a
 test('H-1: every control has a tooltip', async ({ page }) => {
   await fresh(page);
   const missing = await page.evaluate(() =>
-    [...document.querySelectorAll('#bar button, #bar a.btn, #divider, #img-notice button, #img-notice a, #howto-close')]
+    [...document.querySelectorAll('#bar button, #bar a.btn, #toolbar button, #divider, #img-notice button, #img-notice a, #howto-close')]
       .filter((e) => !(e.title || '').trim()).map((e) => e.id || e.textContent));
   expect(missing).toEqual([]);
 });

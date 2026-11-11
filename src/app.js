@@ -34,7 +34,7 @@
     actSaveMd: $('act-save-md'), actSaveHtml: $('act-save-html'), actPrint: $('act-print'),
     actCopyMd: $('act-copy-md'), actCopyRich: $('act-copy-rich'), actCopyHtml: $('act-copy-html'),
     viewEdit: $('view-edit'), viewBoth: $('view-both'), viewPreview: $('view-preview'),
-    btnSync: $('btn-sync'), btnTheme: $('btn-theme'), btnHowto: $('btn-howto'),
+    btnSync: $('btn-sync'), btnTheme: $('btn-theme'), btnHowto: $('btn-howto'), btnToolbar: $('btn-toolbar'), toolbar: $('toolbar'),
     imgNotice: $('img-notice'), imgNoticeText: $('img-notice-text'), imgLoadedText: $('img-loaded-text'),
     imgLoadAll: $('img-load-all'), imgBlockAgain: $('img-block-again'), imgWhy: $('img-why'),
     counts: $('counts'), recovery: $('recovery'), statusMsg: $('status-msg'), version: $('version'),
@@ -50,6 +50,7 @@
     view: null,          // 'edit' | 'both' | 'preview'; null = follow the screen width
     theme: null,         // 'light' | 'dark'; null = follow the device
     sync: true,
+    toolbar: true,
     startedAt: clockNow(),
     approvedUrls: {},    // exact image addresses the reader allowed
     approvedHosts: {},   // exact host names the reader allowed
@@ -712,7 +713,7 @@
   function snapshot() {
     return JSON.stringify({
       v: 1, text: el.editor.value, name: state.name, dirty: state.dirty, split: state.split,
-      view: state.view, theme: state.theme, sync: state.sync, startedAt: state.startedAt,
+      view: state.view, theme: state.theme, sync: state.sync, toolbar: state.toolbar, startedAt: state.startedAt,
       approvedUrls: Object.keys(state.approvedUrls), approvedHosts: Object.keys(state.approvedHosts),
       approveAll: state.approveAll
     });
@@ -759,6 +760,7 @@
       state.view = ['edit', 'both', 'preview'].indexOf(s.view) >= 0 ? s.view : null;
       state.theme = s.theme === 'light' || s.theme === 'dark' ? s.theme : null;
       state.sync = s.sync !== false;
+      state.toolbar = s.toolbar !== false;
       if (typeof s.startedAt === 'string') state.startedAt = s.startedAt;
       (s.approvedUrls || []).forEach(function (u) { state.approvedUrls[u] = true; });
       (s.approvedHosts || []).forEach(function (h) { state.approvedHosts[h] = true; });
@@ -978,16 +980,180 @@
     replaceRange(s, s, '\n' + m[1] + marker + m[3] + (m[4] ? '[ ] ' : ''));
   }
 
-  function insertSnippet(md, block) {
+  // Inserts text at the selection. A block gets blank lines around it as needed. caretFrom/caretTo,
+  // offsets within md, say what to select afterwards; by default the caret lands after the text.
+  function insertSnippet(md, block, caretFrom, caretTo) {
     var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd;
-    var text = md;
+    var text = md, pre = '';
     if (block) {
       var before = v.slice(0, s), after = v.slice(e);
-      var pre = before === '' || /\n\n$/.test(before) ? '' : /\n$/.test(before) ? '\n' : '\n\n';
+      pre = before === '' || /\n\n$/.test(before) ? '' : /\n$/.test(before) ? '\n' : '\n\n';
       var post = after === '' ? '\n' : /^\n\n/.test(after) ? '' : /^\n/.test(after) ? '\n' : '\n\n';
       text = pre + md + post;
     }
-    replaceRange(s, e, text);
+    if (caretFrom == null) replaceRange(s, e, text);
+    else replaceRange(s, e, text, s + pre.length + caretFrom, s + pre.length + (caretTo == null ? caretFrom : caretTo));
+  }
+
+  /* ====================================================================== formatting toolbar */
+
+  function lineSpan(v, s, e) {
+    var start = v.lastIndexOf('\n', s - 1) + 1;
+    var scanFrom = e > s && v.charAt(e - 1) === '\n' ? e - 1 : e;
+    var end = v.indexOf('\n', scanFrom);
+    return [start, end === -1 ? v.length : end];
+  }
+
+  // Wraps the selection in an inline mark such as ** or `, or removes it if it is already there.
+  // With nothing selected, the word under the caret is used; failing that, a placeholder.
+  function wrapInline(mark, placeholder) {
+    var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd, n = mark.length;
+    if (s === e) {
+      var ws = s, we = s;
+      while (ws > 0 && /[^\s*_`~]/.test(v.charAt(ws - 1))) ws--;
+      while (we < v.length && /[^\s*_`~]/.test(v.charAt(we))) we++;
+      if (ws === we) { replaceRange(s, s, mark + placeholder + mark, s + n, s + n + placeholder.length); return; }
+      s = ws; e = we;
+    }
+    var inner = v.slice(s, e);
+    var lead = inner.match(/^\s*/)[0].length, trail = inner.match(/\s*$/)[0].length;
+    if (lead + trail >= inner.length) { replaceRange(s, e, mark + placeholder + mark, s + n, s + n + placeholder.length); return; }
+    s += lead; e -= trail; inner = inner.slice(lead, inner.length - trail);
+    // The single * of italic must not mistake the ** of bold for itself.
+    var starClash = mark === '*' && /^\*\*/.test(inner) && /\*\*$/.test(inner);
+    if (!starClash && inner.length >= 2 * n && inner.slice(0, n) === mark && inner.slice(-n) === mark) {
+      replaceRange(s, e, inner.slice(n, inner.length - n), s, e - 2 * n);         // selection held the marks
+      return;
+    }
+    var outerClash = mark === '*' && (v.slice(s - 2, s) === '**' || v.slice(e, e + 2) === '**');
+    if (!outerClash && v.slice(s - n, s) === mark && v.slice(e, e + n) === mark) {
+      replaceRange(s - n, e + n, inner, s - n, e - n);                               // marks sat just outside
+      return;
+    }
+    replaceRange(s, e, mark + inner + mark, s + n, e + n);
+  }
+
+  // Applies a change to every selected line (or the current one) and selects the result.
+  function editLines(change) {
+    var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd;
+    var span = lineSpan(v, s, e);
+    var lines = v.slice(span[0], span[1]).split('\n');
+    var out = change(lines).join('\n');
+    if (out === lines.join('\n')) { ed.focus(); return; }
+    replaceRange(span[0], span[1], out, span[0], span[0] + out.length);
+  }
+  var LINE_MARK = /^(\s*)(?:[-*+] (?:\[[ xX]\] )?|\d{1,9}[.)] |> ?|#{1,6} )?/;
+
+  // A line prefix such as "- " or "> ": added to every line, or removed when every line has it.
+  function togglePrefix(matcher, prefix) {
+    editLines(function (lines) {
+      var real = lines.filter(function (l) { return l.trim() !== ''; });
+      var allHave = real.length > 0 && real.every(function (l) { return matcher.test(l); });
+      return lines.map(function (l) {
+        if (l.trim() === '') return l;
+        var m = l.match(LINE_MARK);
+        var indent = m[1], rest = l.slice(m[0].length);
+        return allHave ? indent + rest : indent + prefix + rest;
+      });
+    });
+  }
+  function toggleNumbered() {
+    editLines(function (lines) {
+      var real = lines.filter(function (l) { return l.trim() !== ''; });
+      var allHave = real.length > 0 && real.every(function (l) { return /^\s*\d{1,9}[.)] /.test(l); });
+      var k = 0;
+      return lines.map(function (l) {
+        if (l.trim() === '') return l;
+        var m = l.match(LINE_MARK);
+        return allHave ? m[1] + l.slice(m[0].length) : m[1] + (++k) + '. ' + l.slice(m[0].length);
+      });
+    });
+  }
+  // Makes every selected line a heading of this level, or plain text if they already are.
+  function setHeading(level) {
+    editLines(function (lines) {
+      var real = lines.filter(function (l) { return l.trim() !== ''; });
+      var already = real.length > 0 && real.every(function (l) { return new RegExp('^\\s*#{' + level + '} ').test(l); });
+      return lines.map(function (l) {
+        if (l.trim() === '') return l;
+        var rest = l.replace(/^\s*#{1,6}\s+/, '').replace(/^\s+/, '');
+        return already ? rest : '#'.repeat(level) + ' ' + rest;
+      });
+    });
+  }
+  function insertLink() {
+    var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd;
+    var text = v.slice(s, e).trim();
+    if (text === '') { replaceRange(s, e, '[link text](https://)', s + 1, s + 10); return; }
+    if (/^https?:\/\/\S+$/i.test(text)) { replaceRange(s, e, '[link text](' + text + ')', s + 1, s + 10); return; }
+    var out = '[' + text + '](https://)';
+    replaceRange(s, e, out, s + text.length + 3, s + out.length - 1);                // the address is selected, ready to type
+  }
+  function insertImage() {
+    var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd;
+    var text = v.slice(s, e).trim();
+    if (text === '') { replaceRange(s, e, '![description](https://)', s + 2, s + 13); return; }
+    var out = '![' + text + '](https://)';
+    replaceRange(s, e, out, s + text.length + 4, s + out.length - 1);
+  }
+  function insertCodeBlock() {
+    var ed = el.editor, v = ed.value, s = ed.selectionStart, e = ed.selectionEnd;
+    if (s === e) { insertSnippet('```\n\n```', true, 4); return; }
+    var span = lineSpan(v, s, e);
+    ed.setSelectionRange(span[0], span[1]);
+    insertSnippet('```\n' + v.slice(span[0], span[1]) + '\n```', true, 0, span[1] - span[0] + 8);
+  }
+
+  var TOOLS = [
+    { id: 'bold', cls: 'tb-b', label: 'B', title: 'Bold (Ctrl+B)', run: function () { wrapInline('**', 'bold text'); } },
+    { id: 'italic', cls: 'tb-i', label: 'I', title: 'Italic (Ctrl+I)', run: function () { wrapInline('*', 'italic text'); } },
+    { id: 'strike', cls: 'tb-s', label: 'S', title: 'Strikethrough', run: function () { wrapInline('~~', 'crossed out'); } },
+    { id: 'code', cls: 'tb-code', label: '<>', title: 'Code inside a sentence', run: function () { wrapInline('`', 'code'); } },
+    { gap: true },
+    { id: 'h1', label: 'H1', title: 'Biggest heading. Press again to remove.', run: function () { setHeading(1); } },
+    { id: 'h2', label: 'H2', title: 'Second-level heading. Press again to remove.', run: function () { setHeading(2); } },
+    { id: 'h3', label: 'H3', title: 'Third-level heading. Press again to remove.', run: function () { setHeading(3); } },
+    { gap: true },
+    { id: 'link', label: 'Link', title: 'Link (Ctrl+K). Select the words first, then type the address.', run: insertLink },
+    { id: 'image', label: 'Image', title: 'Image. Select the description first, then type the address.', run: insertImage },
+    { gap: true },
+    { id: 'ul', label: '• List', title: 'Bulleted list. Press again to remove.', run: function () { togglePrefix(/^\s*[-*+] (?!\[[ xX]\] )/, '- '); } },
+    { id: 'ol', label: '1. List', title: 'Numbered list. Press again to remove.', run: toggleNumbered },
+    { id: 'task', label: '☑ List', title: 'Checklist. Press again to remove.', run: function () { togglePrefix(/^\s*[-*+] \[[ xX]\] /, '- [ ] '); } },
+    { id: 'quote', label: '“ Quote', title: 'Quotation. Press again to remove.', run: function () { togglePrefix(/^\s*> ?/, '> '); } },
+    { gap: true },
+    { id: 'codeblock', cls: 'tb-block', label: '```', title: 'Code block around the selected lines', run: insertCodeBlock },
+    { id: 'table', label: 'Table', title: 'Insert a table', run: function () { insertSnippet('| Column | Column |\n| --- | --- |\n| cell | cell |', true, 2, 8); } },
+    { id: 'hr', label: '—', title: 'Dividing line', run: function () { insertSnippet('---', true); } }
+  ];
+  var toolById = {};
+
+  function buildToolbar() {
+    TOOLS.forEach(function (tool, i) {
+      if (tool.gap) { el.toolbar.append(make('span', { class: 'tb-gap', 'aria-hidden': 'true' })); return; }
+      var b = make('button', { type: 'button', id: 'tb-' + tool.id, text: tool.label, title: tool.title, 'aria-label': tool.title, tabindex: i === 0 ? '0' : '-1' });
+      if (tool.cls) b.className = tool.cls;
+      // Pressing with a mouse or finger must not take the selection away from the text.
+      b.addEventListener('pointerdown', function (ev) { ev.preventDefault(); });
+      b.addEventListener('click', function () { if (currentView() === 'preview') setView(narrow ? 'edit' : 'both'); tool.run(); });
+      toolById[tool.id] = tool;
+      el.toolbar.append(b);
+    });
+    el.toolbar.addEventListener('keydown', function (ev) {          // arrow keys move along the toolbar
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+      var all = Array.prototype.slice.call(el.toolbar.querySelectorAll('button'));
+      var i = all.indexOf(document.activeElement);
+      if (i < 0) return;
+      var next = all[(i + (ev.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+      all.forEach(function (b) { b.tabIndex = -1; });
+      next.tabIndex = 0;
+      next.focus();
+      ev.preventDefault();
+    });
+  }
+  function applyToolbar() {
+    el.body.dataset.toolbar = String(state.toolbar);
+    el.btnToolbar.setAttribute('aria-pressed', String(state.toolbar));
   }
 
   var escapeArmed = false;        // Escape, then Tab, leaves the text box
@@ -1003,7 +1169,11 @@
       return;
     }
     if (ev.key !== 'Shift') escapeArmed = false;
-    if (ev.key === 'Enter' && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) continueList(ev);
+    if (ev.key === 'Enter' && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { continueList(ev); return; }
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey) {
+      var tool = { b: 'bold', i: 'italic', k: 'link' }[(ev.key || '').toLowerCase()];
+      if (tool) { ev.preventDefault(); toolById[tool].run(); }
+    }
   }
 
   function onEditorInput(ev) {
@@ -1342,6 +1512,7 @@
     el.viewBoth.addEventListener('click', function () { setView('both'); });
     el.viewPreview.addEventListener('click', function () { setView('preview'); });
     el.btnSync.addEventListener('click', function () { state.sync = !state.sync; applySync(); schedulePersist(); });
+    el.btnToolbar.addEventListener('click', function () { state.toolbar = !state.toolbar; applyToolbar(); schedulePersist(); });
     el.btnTheme.addEventListener('click', function () {
       var dark = state.theme ? state.theme === 'dark' : systemDark();
       state.theme = dark ? 'light' : 'dark';
@@ -1426,6 +1597,8 @@
     el.version.title = 'MarkoPad version ' + BUILD.version;
     applyTheme();
     applySync();
+    buildToolbar();
+    applyToolbar();
     applySplit();
     applyView();
     wire();

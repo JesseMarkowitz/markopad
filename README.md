@@ -33,6 +33,7 @@ sheet for Markdown itself.
 - Open a file, drop a file, or paste. Copy as Markdown, formatted text or HTML. Download as `.md`
   or as a standalone `.html`. Print or save as PDF.
 - Every browser tab is its own independent document.
+- A formatting toolbar that applies Markdown to the selected text, and can be hidden.
 - A searchable "How do I…?" panel that inserts examples at the cursor.
 - Light and dark appearance.
 
@@ -70,7 +71,7 @@ styling while the document is still being cleaned, before it is removed. Nothing
 - Documents of a few hundred kilobytes stay smooth. A 1 MB document works, but typing can lag,
   mostly because browsers slow down with that much text in a single text box.
 - JavaScript is required.
-- No formatting toolbar, footnotes, math, diagrams or code colouring in this version.
+- No footnotes, math, diagrams or code colouring in this version.
 
 ## Develop
 

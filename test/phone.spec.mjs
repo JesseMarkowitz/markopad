@@ -60,6 +60,16 @@ test('H-3 on a phone: Insert returns to the text', async ({ page }) => {
   await expect(page.locator('#editor')).toHaveValue('**bold text**');
 });
 
+test('the toolbar works by touch and scrolls sideways instead of overflowing', async ({ page }) => {
+  await fresh(page);
+  await setText(page, 'tap to bold');
+  await page.locator('#editor').evaluate((e) => { e.focus(); e.setSelectionRange(7, 11); });
+  await page.locator('#tb-bold').tap();
+  await expect(page.locator('#editor')).toHaveValue('tap to **bold**');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.locator('#toolbar').evaluate((t) => t.scrollWidth > t.clientWidth && getComputedStyle(t).overflowX === 'auto')).toBe(true);
+});
+
 test('the top bar fits a phone screen', async ({ page }) => {
   await fresh(page);
   const overflow = await page.evaluate(() => [...document.querySelectorAll('#bar button, #bar a.btn')]
