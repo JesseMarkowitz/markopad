@@ -183,6 +183,91 @@ test('E-2, E-3: Tab indents, Shift+Tab outdents, undo still works, Esc then Tab 
   expect(await editorValue(page)).toBe('line1\nline2');
 });
 
+// Presses Undo until the text stops changing; returns the text after each press.
+async function undoAll(page, limit = 1500) {
+  const seen = [];
+  let prev = await editorValue(page);
+  for (let i = 0; i < limit; i++) {
+    await page.keyboard.press(`${mod}+Z`);
+    const v = await editorValue(page);
+    if (v === prev) break;
+    seen.push(v);
+    prev = v;
+  }
+  return seen;
+}
+
+test('E-2: undo takes typing back a little at a time, and redo puts it back', async ({ page }) => {
+  await fresh(page);
+  await page.locator('#editor').click();
+  const paragraphs = ['The first sentence goes here, and it runs on for a good while before it stops.',
+    'A second paragraph follows it without the caret ever being moved.', 'Third and last.'];
+  for (const p of paragraphs) { await page.keyboard.type(p, { delay: 5 }); await page.keyboard.press('Enter'); }
+  const full = await editorValue(page);
+  expect(full).toBe(paragraphs.join('\n') + '\n');
+  const seen = await undoAll(page);
+  expect(seen.length).toBeGreaterThanOrEqual(6);                      // not one step for the whole run
+  expect(seen[seen.length - 1]).toBe('');
+  for (let i = 0; i < seen.length; i++) {                             // each step only removes from the end
+    expect(full.startsWith(seen[i])).toBe(true);
+    expect(seen[i].length).toBeLessThan(i ? seen[i - 1].length : full.length);
+  }
+  for (let i = 0; i < seen.length; i++) await page.keyboard.press(`${mod}+Shift+Z`);
+  expect(await editorValue(page)).toBe(full);
+  await page.keyboard.press(`${mod}+Z`);
+  await page.keyboard.press(`${mod}+Y`);                              // the other Redo key
+  expect(await editorValue(page)).toBe(full);
+  await page.keyboard.press(`${mod}+Z`);
+  await page.keyboard.type('x');                                      // a new edit drops what could be redone
+  const edited = await editorValue(page);
+  await page.keyboard.press(`${mod}+Shift+Z`);
+  expect(await editorValue(page)).toBe(edited);
+});
+
+test('E-2: a pause, a caret move and a correction each behave as expected in the undo history', async ({ page }) => {
+  await fresh(page);
+  await page.locator('#editor').click();
+  await page.keyboard.type('hello wrold');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Backspace');
+  await page.keyboard.type('world');
+  expect(await editorValue(page)).toBe('hello world');
+  await page.waitForTimeout(1000);                                    // a pause ends the step
+  await page.keyboard.type(' again');
+  await page.keyboard.press('Home');                                  // so does moving the caret
+  await page.keyboard.type('Oh, ');
+  await page.keyboard.press('End');
+  for (let i = 0; i < 6; i++) await page.keyboard.press('Backspace');  // deleting older text is its own step
+  expect(await editorValue(page)).toBe('Oh, hello world');
+  expect(await undoAll(page)).toEqual(['Oh, hello world again', 'hello world again', 'hello world', '']);
+  await page.keyboard.press(`${mod}+Shift+Z`);
+  await page.keyboard.press(`${mod}+Shift+Z`);
+  expect(await editorValue(page)).toBe('hello world again');
+  expect(await page.locator('#editor').evaluate((e) => [e.selectionStart, e.selectionEnd])).toEqual([17, 17]);
+});
+
+test('E-2: hundreds of edits can be undone, a paste is one step, and New clears the history', async ({ page }) => {
+  await fresh(page);
+  await page.locator('#editor').click();
+  for (let i = 0; i < 300; i++) { await page.keyboard.type('ab'); await page.keyboard.press('Home'); }
+  expect((await editorValue(page)).length).toBe(600);
+  const seen = await undoAll(page);
+  expect(seen.length).toBe(300);
+  expect(seen[299]).toBe('');
+  await page.keyboard.type('pasted text');
+  await page.keyboard.press(`${mod}+A`);
+  await page.keyboard.press(`${mod}+X`);
+  await page.keyboard.press(`${mod}+V`);
+  await page.keyboard.type('more');                                   // typed straight after: still its own step
+  expect(await undoAll(page)).toEqual(['pasted text', '', 'pasted text', '']);
+  for (let i = 0; i < 3; i++) await page.keyboard.press(`${mod}+Shift+Z`);
+  expect(await editorValue(page)).toBe('pasted text');
+  await page.click('#btn-new');
+  await page.getByRole('button', { name: 'Discard and start new' }).click();
+  expect(await editorValue(page)).toBe('');
+  await page.keyboard.press(`${mod}+Z`);                              // the old text must not come back
+  expect(await editorValue(page)).toBe('');
+});
+
 test('E-4: Enter continues a list and ends it on an empty item', async ({ page }) => {
   await fresh(page);
   await page.locator('#editor').click();

@@ -1,8 +1,9 @@
 # MarkoPad — Requirements
 
-Version 1 requirements, 2026-11-10. Status: **released as 1.0.0**. Section 11 records what has been verified and what has not.
+Version 1 requirements, 2026-11-10, last changed 2026-11-22 for 1.1.0. Status: **1.1.0**. Section 11 records what has been verified and what has not.
 
-MarkoPad is a two-pane Markdown editor and viewer that runs entirely in the browser. You type or
+MarkoPad (**M**arkdown **A**nd **R**endering, **K**ept **O**n-device **Pad**) is a two-pane
+Markdown editor and viewer that runs entirely in the browser. You type or
 paste Markdown on the left and read the rendered result on the right. It is one static page that
 anyone can host, or open straight from a disk, and it never sends a document anywhere.
 
@@ -67,8 +68,11 @@ All seven recommendations were accepted on 2026-11-09.
 ### 3.2 Editing
 
 - **E-1** The left pane is a plain text box. No syntax colouring, no line numbers.
-- **E-2** The browser's own undo, redo, spell check, selection and find all work as they do in any
-  text box.
+- **E-2** The browser's own spell check, selection and find all work as they do in any text box.
+  Undo and redo are MarkoPad's own, because a browser takes back a whole run of typing in one step.
+  One step is a short run of typing: it ends at a pause, a new line, a caret move, or the next word
+  once it is about 40 characters long. A paste, a cut and a toolbar action are one step each. The
+  last 1,000 steps are kept. The history lives in memory only: New, Open and a reload clear it.
 - **E-3** Tab indents and Shift+Tab outdents the current line or selection. Pressing
   Escape first lets Tab move focus out of the box, for keyboard-only users.
 - **E-4** Pressing Enter inside a list starts the next list item; pressing Enter on an
@@ -331,6 +335,21 @@ browser and the result recorded.
    disk; differences between the three are written into the help.
 6. **Browsers.** The walk-through is repeated on each browser in Q6.
 
+### Verification record, 2026-11-22 (1.1.0)
+
+1.1.0 gives MarkoPad its own undo history (E-2) and puts the name's derivation in the first line of
+the help. Run with `MARKOPAD_WEBKIT=1 npm test` (Playwright 1.65.0) against the local build:
+**135 passed, 0 skipped, 0 failed**: the desktop suite, now 44 tests with three new undo tests, in
+Chromium 1254, Firefox 1572 and WebKit 2388, and the 7 phone-size tests in Chromium.
+
+Measured before the change, with three short paragraphs (153 characters) typed without moving the
+caret: the browser's own undo gave 9 steps in Chromium and 1 step in Firefox and in WebKit. After
+the change it is 10 steps in all three.
+
+Not verified: Undo chosen from the browser's menu rather than the keyboard. It is meant to reach the
+same history, but no test can make a real menu choice. This build has not been run against a hosted
+copy or tried by hand.
+
 ### Verification record, 2026-11-10 (release 1.0.0)
 
 Run with `MARKOPAD_WEBKIT=1 npm test` (Playwright 1.65.0) on the new development machine, and
@@ -441,3 +460,4 @@ responsive while a large document is prepared: the longest stall was about 0.3 s
 | 2026-11-09 | The first version is 0.1.0. |
 | 2026-11-10 | Formatting toolbar added (section 3.8), with a Toolbar button to hide it. Name explanation added to the help's About section. Version 0.2.0. |
 | 2026-11-10 | No further enhancements for version 1. Released as 1.0.0 with the toolbar included. |
+| 2026-11-22 | Undo and redo are MarkoPad's own, in small steps, 1,000 deep (E-2), because the browser's undo took back whole runs of typing. The name's derivation is given where MarkoPad is first introduced. Version 1.1.0. |

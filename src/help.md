@@ -1,6 +1,6 @@
 # MarkoPad Help
 
-MarkoPad is a Markdown editor and viewer with two panes. You type or paste plain text on the left and read the formatted document on the right. It runs entirely inside this browser tab. **Nothing you type or open is ever sent anywhere.**
+MarkoPad (**M**arkdown **A**nd **R**endering, **K**ept **O**n-device **Pad**) is a Markdown editor and viewer with two panes. You type or paste plain text on the left and read the formatted document on the right. It runs entirely inside this browser tab. **Nothing you type or open is ever sent anywhere.**
 
 You are reading this help inside MarkoPad itself. The left pane shows the Markdown that produces what you see on the right, so every part of this page is also a worked example. Change anything you like; this copy is yours and disappears when you close the tab.
 
@@ -233,7 +233,9 @@ Colours, fonts, sizes and positioning written into a document are removed, so th
 | <kbd>Esc</kbd> then <kbd>Tab</kbd> | Leave the text pane with the keyboard |
 | <kbd>Esc</kbd> | Close a menu, a question or the How do I…? panel |
 
-On a Mac, use <kbd>⌘</kbd> in place of <kbd>Ctrl</kbd>. Undo, redo, find and spell check are the browser's own and work as they do in any text box.
+On a Mac, use <kbd>⌘</kbd> in place of <kbd>Ctrl</kbd>. Find and spell check are the browser's own and work as they do in any text box.
+
+**Undo** is <kbd>Ctrl</kbd> + <kbd>Z</kbd>, and **redo** is <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> or <kbd>Ctrl</kbd> + <kbd>Y</kbd>. Each undo takes back a few words of typing, or one paste, cut or toolbar action. MarkoPad remembers the last 1,000 steps. Starting a new document, opening a file or reloading the page clears them.
 
 ## Hosting MarkoPad, or running it from a disk
 

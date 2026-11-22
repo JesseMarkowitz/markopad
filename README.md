@@ -1,6 +1,7 @@
 # MarkoPad
 
-A private Markdown editor and viewer in one file. Type or paste Markdown on the left, read the
+MarkoPad (**M**arkdown **A**nd **R**endering, **K**ept **O**n-device **Pad**) is a private Markdown
+editor and viewer in one file. Type or paste Markdown on the left, read the
 formatted document on the right. Everything happens inside the browser tab: no account, no server
 code, and nothing you type or open is ever sent anywhere.
 

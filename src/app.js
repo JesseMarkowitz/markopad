@@ -778,6 +778,7 @@
 
   function loadDocument(text, name) {
     el.editor.value = text;
+    historyReset();
     state.name = name || '';
     state.dirty = false;
     clearApprovals();
@@ -920,6 +921,104 @@
     } else fallback();
   }
 
+  /* ====================================================================== undo history */
+
+  // MarkoPad keeps its own undo history. A browser's own history for a text box treats a whole
+  // run of typing as one step (in Firefox and Safari, everything typed since the caret last moved),
+  // so one Undo could take back paragraphs. Here each step is a short run of typing: it ends at a
+  // pause, at a new line, at a caret move, or at the next word once the run is long enough.
+  // A step is a difference, not a copy of the document: at `pos`, `rem` was replaced by `ins`.
+  var UNDO_STEPS = 1000;          // steps kept; the oldest are dropped first
+  var UNDO_CHARS = 20000000;      // and no more than this much text held in them
+  var UNDO_PAUSE = 800;           // ms without typing that ends a step
+  var UNDO_RUN = 40;              // a step this long ends at the next word
+  var UNDO_SLOW = 200000;         // above this, skip the browser's (slow) editing command
+  var hist = { known: '', undo: [], redo: [], chars: 0, open: false, last: 0, applying: false, selBefore: null };
+
+  function historyReset() {
+    hist.known = el.editor.value;
+    hist.undo = []; hist.redo = []; hist.chars = 0; hist.open = false; hist.selBefore = null;
+  }
+  // The next edit starts a new step.
+  function historySeal() { hist.open = false; }
+  function historyNoteSelection() {
+    var top = hist.undo[hist.undo.length - 1];
+    if (top && !hist.applying) top.after = [el.editor.selectionStart, el.editor.selectionEnd];
+  }
+  var TYPING = { insertText: 1, insertCompositionText: 1, insertLineBreak: 1, insertParagraph: 1, deleteContentBackward: 1, deleteContentForward: 1 };
+
+  // Called on every change to the text: works out what changed and adds it to the history.
+  function historyRecord(ev) {
+    var ed = el.editor, now = ed.value, was = hist.known;
+    var before = hist.selBefore;
+    hist.selBefore = null;
+    if (now === was) return;
+    hist.known = now;
+    if (hist.applying) return;
+    var type = (ev && ev.inputType) || '';
+    var typing = TYPING[type] === 1;
+    var limit = Math.min(was.length, now.length), max = limit, p = 0, s = 0;
+    // Typing never changes anything before where the selection began. Without this, a letter typed
+    // in front of the same letter would be recorded one place too far along.
+    if (typing && before) max = Math.min(max, before[0]);
+    while (p < max && was.charCodeAt(p) === now.charCodeAt(p)) p++;
+    max = limit - p;
+    while (s < max && was.charCodeAt(was.length - 1 - s) === now.charCodeAt(now.length - 1 - s)) s++;
+    var rem = was.slice(p, was.length - s), ins = now.slice(p, now.length - s);
+    var newLine = type === 'insertLineBreak' || type === 'insertParagraph';
+    var stamp = Date.now();
+    var top = hist.undo[hist.undo.length - 1];
+    var after = [ed.selectionStart, ed.selectionEnd];
+    var merged = false;
+    // Typing joins the step before it only if the caret has stayed where that step left it.
+    var caretStayed = top && before && before[0] === top.after[0] && before[1] === top.after[1];
+    if (caretStayed && hist.open && typing && !newLine && stamp - hist.last < UNDO_PAUSE) {
+      var at = p - top.pos;
+      if (top.kind === 'type' && at >= 0 && at + rem.length <= top.ins.length) {
+        var newWord = top.ins.length >= UNDO_RUN && /^\S/.test(ins) && /\s/.test(was.charAt(p - 1));
+        if (!newWord) { top.ins = top.ins.slice(0, at) + ins + top.ins.slice(at + rem.length); merged = true; }
+      } else if (top.kind === 'del' && ins === '') {
+        if (p + rem.length === top.pos) { top.rem = rem + top.rem; top.pos = p; merged = true; }       // Backspace
+        else if (p === top.pos) { top.rem += rem; merged = true; }                                     // Delete
+      }
+    }
+    if (merged) top.after = after;
+    else {
+      hist.undo.push({
+        kind: !typing ? 'one' : ins === '' ? 'del' : 'type',
+        pos: p, rem: rem, ins: ins, before: before || [p, p + rem.length], after: after
+      });
+      hist.open = typing;
+    }
+    hist.chars += rem.length + ins.length;
+    hist.last = stamp;
+    hist.redo = [];
+    while (hist.undo.length > 1 && (hist.undo.length > UNDO_STEPS || hist.chars > UNDO_CHARS)) {
+      var old = hist.undo.shift();
+      hist.chars = Math.max(0, hist.chars - old.rem.length - old.ins.length);
+    }
+  }
+
+  function historyStep(redo) {
+    var ed = el.editor, from = redo ? hist.redo : hist.undo, to = redo ? hist.undo : hist.redo, e;
+    hist.open = false;
+    if (ed.value !== hist.known) { historyReset(); return; }       // changed behind our back: start over
+    do { e = from.pop(); } while (e && e.rem === e.ins);           // typed and deleted again: nothing to do
+    if (!e) return;
+    to.push(e);
+    var end = e.pos + (redo ? e.rem : e.ins).length, text = redo ? e.ins : e.rem, sel = redo ? e.after : e.before;
+    hist.applying = true;
+    try {
+      if (text.length > UNDO_SLOW || end - e.pos > UNDO_SLOW) {
+        ed.focus();
+        ed.setRangeText(text, e.pos, end, 'end');
+        ed.setSelectionRange(sel[0], sel[1]);
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+      } else replaceRange(e.pos, end, text, sel[0], sel[1]);
+    } finally { hist.applying = false; }
+    hist.known = ed.value;
+  }
+
   /* ====================================================================== editing */
 
   // Replace a range of the text through the browser's editing command, so that undo still works.
@@ -927,6 +1026,7 @@
     var ed = el.editor;
     ed.focus();
     ed.setSelectionRange(start, end);
+    historySeal();                                   // one action, one undo step
     var ok = false;
     try {
       ok = text === ''
@@ -938,6 +1038,8 @@
       ed.dispatchEvent(new Event('input', { bubbles: true }));
     }
     if (selStart != null) ed.setSelectionRange(selStart, selEnd == null ? selStart : selEnd);
+    historySeal();
+    historyNoteSelection();
   }
 
   function indentSelection(outdent) {
@@ -1170,6 +1272,10 @@
     }
     if (ev.key !== 'Shift') escapeArmed = false;
     if (ev.key === 'Enter' && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { continueList(ev); return; }
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey) {
+      var k = (ev.key || '').toLowerCase();
+      if (k === 'z' || (k === 'y' && !ev.shiftKey)) { ev.preventDefault(); historyStep(k === 'y' || ev.shiftKey); return; }
+    }
     if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey) {
       var tool = { b: 'bold', i: 'italic', k: 'link' }[(ev.key || '').toLowerCase()];
       if (tool) { ev.preventDefault(); toolById[tool].run(); }
@@ -1177,6 +1283,7 @@
   }
 
   function onEditorInput(ev) {
+    historyRecord(ev);
     var text = el.editor.value;
     var cameFromOutside = ev && (ev.inputType === 'insertFromPaste' || ev.inputType === 'insertFromDrop');
     if (text === '') setDirty(false);                                  // nothing left to lose
@@ -1484,7 +1591,17 @@
   }
 
   function wire() {
-    el.editor.addEventListener('beforeinput', function () { wasEmptyBeforeInput = el.editor.value === ''; });
+    el.editor.addEventListener('beforeinput', function (ev) {
+      // Undo and Redo chosen from a menu rather than the keyboard go to MarkoPad's history too.
+      if (ev.inputType === 'historyUndo' || ev.inputType === 'historyRedo') {
+        ev.preventDefault();
+        historyStep(ev.inputType === 'historyRedo');
+        return;
+      }
+      wasEmptyBeforeInput = el.editor.value === '';
+      hist.selBefore = [el.editor.selectionStart, el.editor.selectionEnd];
+    });
+
     el.editor.addEventListener('paste', function () { wasEmptyBeforeInput = el.editor.value === ''; });
     el.editor.addEventListener('input', onEditorInput);
     el.editor.addEventListener('keydown', onEditorKeydown);
@@ -1601,6 +1718,7 @@
     applyToolbar();
     applySplit();
     applyView();
+    historyReset();
     wire();
     render(el.editor.value.length < BIG_DOCUMENT);
     if (boot.kind !== 'restore') persist();
