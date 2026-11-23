@@ -347,8 +347,11 @@ caret: the browser's own undo gave 9 steps in Chromium and 1 step in Firefox and
 the change it is 10 steps in all three.
 
 Not verified: Undo chosen from the browser's menu rather than the keyboard. It is meant to reach the
-same history, but no test can make a real menu choice. This build has not been run against a hosted
-copy or tried by hand.
+same history, but no test can make a real menu choice.
+
+After release the owner used 1.1.0 by hand on both hosted Start9 Pages copies and found undo much
+better. The same suite was then pointed at each hosted copy, both serving the released file byte
+for byte: **135 passed, 0 skipped, 0 failed, on each.**
 
 ### Verification record, 2026-11-10 (release 1.0.0)
 
